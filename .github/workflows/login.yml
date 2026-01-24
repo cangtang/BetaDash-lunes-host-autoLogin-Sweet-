@@ -1,53 +1,43 @@
-name: Lunes Auto Login(Sweet-Node6-US)
+name: Lunes Auto Login
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: # 允许手动触发
   schedule:
-    # 每天北京/河内/曼谷时区（UTC+7）07:00 执行一次（按需调整）
-    - cron: "20 17 * * *"  # GitHub 使用 UTC，这里是 UTC 23:00 ≈ 亚洲/曼谷 07:00
+    # 每 4 天运行一次，避开整点
+    # 示例：UTC 时间 02:37 (北京时间 10:37)
+    - cron: "37 2 */4 * *"
 
 jobs:
   login:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    env:
-      # 从 GitHub Secrets 注入
-      LUNES_USERNAME: ${{ secrets.LUNES_USERNAME }}
-      LUNES_PASSWORD: ${{ secrets.LUNES_PASSWORD }}
-      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
 
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: '20'
+          cache: 'npm'
 
-      - name: Install deps
+      - name: Install dependencies
         run: |
           npm install
           npx playwright install --with-deps chromium
 
-      - name: Run login
-        run: |
-          node -v
-          npm -v
-          npm run login
-        continue-on-error: true
+      - name: Run Auto Login Script
+        env:
+          LUNES_USERNAME: ${{ secrets.LUNES_USERNAME }}
+          LUNES_PASSWORD: ${{ secrets.LUNES_PASSWORD }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: npm run login
 
-      - name: Archive screenshots & logs
+      - name: Upload Screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: screenshots-and-logs
-          path: |
-            *.png
-          if-no-files-found: ignore
-
-      - name: Fail job if script failed
-        if: ${{ steps.login.outcome == 'failure' }}
-        run: exit 1
+          name: login-screenshots
+          path: ./*.png
+          retention-days: 7
